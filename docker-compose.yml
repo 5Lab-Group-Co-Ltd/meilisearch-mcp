@@ -10,7 +10,7 @@ services:
       - MEILI_MASTER_KEY=masterKey5LabX
       - MEILI_ENV=development
     volumes:
-      - meilisearch_data:/meili_data
+      - /var/lib/meilisearch:/meili_data
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:7700/health || exit 1" ]
       interval: 5s
@@ -43,10 +43,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
-
-volumes:
-  meilisearch_data:
-
 
 networks:
   meilisearch-net:

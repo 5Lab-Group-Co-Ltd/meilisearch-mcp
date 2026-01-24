@@ -25,7 +25,7 @@ class AsyncLogHandler:
             try:
                 record = self.buffer.get(timeout=1.0)
                 self._write_log(record)
-            except:
+            except Exception:
                 continue
 
     def _write_log(self, record: Dict[str, Any]):
@@ -36,7 +36,7 @@ class AsyncLogHandler:
         """Add log record to buffer"""
         try:
             self.buffer.put(record, block=False)
-        except:
+        except Exception:
             pass  # Buffer full, skip log
 
     def shutdown(self):

@@ -17,6 +17,10 @@
 **For n8n MCP Client integration**, use Docker Compose to run Meilisearch and the MCP server:
 
 ```bash
+# Create data directory with correct permissions
+sudo mkdir -p /var/lib/meilisearch
+sudo chown -R 1000:1000 /var/lib/meilisearch
+
 # Start services
 docker-compose up -d
 
@@ -42,7 +46,50 @@ docker-compose down
 docker-compose up -d
 ```
 
-Data persists in the `meilisearch_data` volume.
+Data persists at `/var/lib/meilisearch` on the host (Ubuntu 24 LTS).
+
+### nginx Reverse Proxy (HTTPS Only)
+
+If only port 443 is open, use nginx as a reverse proxy for SSE:
+
+```nginx
+# /etc/nginx/sites-available/meilisearch-mcp
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    # SSE endpoint (requires special handling)
+    location /sse/ {
+        proxy_pass http://localhost:8000/sse/;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_cache off;
+        proxy_buffering off;
+        chunked_transfer_encoding off;
+        proxy_read_timeout 3600s;
+    }
+
+    # POST messages endpoint
+    location /messages/ {
+        proxy_pass http://localhost:8000/messages/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }
+
+    # Health check
+    location /health {
+        proxy_pass http://localhost:8000/health;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }
+}
+```
+
+Then update n8n MCP Client URL to: `https://your-domain.com/sse/`
 
 ## Installation
 
