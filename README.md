@@ -14,6 +14,17 @@
 
 ## Quick Start with Docker Compose
 
+**Prerequisites**: Install Docker and Docker Compose on Ubuntu 24 LTS:
+
+```bash
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Install Docker Compose plugin
+sudo docker compose version
+```
+
 **For n8n MCP Client integration**, use Docker Compose to run Meilisearch and the MCP server:
 
 ```bash
@@ -22,7 +33,7 @@ sudo mkdir -p /var/lib/meilisearch
 sudo chown -R 1000:1000 /var/lib/meilisearch
 
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # Verify health
 curl http://localhost:8000/health
@@ -42,8 +53,8 @@ In n8n, add an **MCP Client** node:
 
 ```bash
 # Edit docker-compose.yml, change version, then:
-docker-compose down
-docker-compose up -d
+docker compose down
+docker compose up -d
 ```
 
 Data persists at `/var/lib/meilisearch` on the host (Ubuntu 24 LTS).
