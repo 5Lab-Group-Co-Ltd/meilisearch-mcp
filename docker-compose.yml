@@ -1,0 +1,53 @@
+version: "3.8"
+
+services:
+  meilisearch:
+    image: getmeili/meilisearch:v1.33.1
+    container_name: meilisearch
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_MASTER_KEY=masterKey5LabX
+      - MEILI_ENV=development
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:7700/health || exit 1" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - meilisearch-net
+
+  meilisearch-mcp:
+    build: .
+    container_name: meilisearch-mcp
+    ports:
+      - "8000:8000"
+    environment:
+      - MEILI_HTTP_ADDR=http://meilisearch:7700
+      - MEILI_MASTER_KEY=masterKey5LabX
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8000
+    depends_on:
+      meilisearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - meilisearch-net
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  meilisearch_data:
+
+
+networks:
+  meilisearch-net:
+    driver: bridge

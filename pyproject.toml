@@ -8,6 +8,8 @@ dependencies = [
     "mcp>=1.23.1",
     "httpx>=0.28.1",
     "pydantic>=2.12.5",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
 ]
 
 [build-system]
@@ -16,6 +18,7 @@ build-backend = "setuptools.build_meta"
 
 [project.scripts]
 meilisearch-mcp = "meilisearch_mcp.server:main"
+meilisearch-mcp-http = "meilisearch_mcp.http_server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/meilisearch_mcp"]
