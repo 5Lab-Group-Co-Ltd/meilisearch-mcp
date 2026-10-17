@@ -719,3 +719,37 @@ class TestIssue27OpenAISchemaCompatibility:
                 # All required fields should exist in properties
                 for required_field in schema["required"]:
                     assert required_field in schema["properties"]
+
+
+class TestSearchPagination:
+    """Tests for page-based pagination in the search tool"""
+
+    async def test_search_page_pagination_integration(self, mcp_server):
+        """Test page-based pagination returns totalHits/totalPages (needs Meilisearch)"""
+        test_index = generate_unique_index_name("test_pagination")
+        test_documents = [
+            {"id": 1, "title": "Doc One", "content": "alpha"},
+            {"id": 2, "title": "Doc Two", "content": "beta"},
+            {"id": 3, "title": "Doc Three", "content": "gamma"},
+            {"id": 4, "title": "Doc Four", "content": "delta"},
+            {"id": 5, "title": "Doc Five", "content": "epsilon"},
+        ]
+
+        # Create index and add documents
+        await create_test_index_with_documents(mcp_server, test_index, test_documents)
+
+        # Search with page-based pagination
+        search_result = await simulate_mcp_call(
+            mcp_server,
+            "search",
+            {"query": "", "indexUid": test_index, "page": 1, "hitsPerPage": 2},
+        )
+        search_text = assert_text_content_response(search_result)
+
+        # Page-based pagination responses include finite pagination metadata
+        assert "totalHits" in search_text
+        assert "totalPages" in search_text
+        assert "hitsPerPage" in search_text
+
+        # Cleanup
+        await simulate_mcp_call(mcp_server, "delete-index", {"uid": test_index})

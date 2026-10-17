@@ -56,6 +56,10 @@ class MeilisearchClient:
         offset: Optional[int] = 0,
         filter: Optional[str] = None,
         sort: Optional[List[str]] = None,
+        page: Optional[int] = None,
+        hits_per_page: Optional[int] = None,
+        facets: Optional[List[str]] = None,
+        attributes_to_search_on: Optional[List[str]] = None,
         **kwargs,
     ) -> Dict[str, Any]:
         """
@@ -64,16 +68,25 @@ class MeilisearchClient:
         If not provided, search across all available indices.
         """
         try:
-            # Prepare search parameters, removing None values
-            search_params = {
-                "limit": limit if limit is not None else 20,
-                "offset": offset if offset is not None else 0,
-            }
-
+            # Prepare search parameters, removing None values.
+            # Page-based pagination and offset/limit are mutually exclusive.
+            search_params = {}
+            if page is not None or hits_per_page is not None:
+                if page is not None:
+                    search_params["page"] = page
+                if hits_per_page is not None:
+                    search_params["hitsPerPage"] = hits_per_page
+            else:
+                search_params["limit"] = limit if limit is not None else 20
+                search_params["offset"] = offset if offset is not None else 0
             if filter is not None:
                 search_params["filter"] = filter
             if sort is not None:
                 search_params["sort"] = sort
+            if facets is not None:
+                search_params["facets"] = facets
+            if attributes_to_search_on is not None:
+                search_params["attributesToSearchOn"] = attributes_to_search_on
 
             # Add any additional parameters
             search_params.update({k: v for k, v in kwargs.items() if v is not None})

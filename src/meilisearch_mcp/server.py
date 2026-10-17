@@ -227,6 +227,24 @@ class MeilisearchMCPServer:
                                 "type": "array",
                                 "items": {"type": "string"},
                             },
+                            "page": {
+                                "type": "integer",
+                                "description": "Page number (1-indexed) for finite/page-based pagination. When set, response includes totalHits and totalPages. Mutually exclusive with limit/offset.",
+                            },
+                            "hitsPerPage": {
+                                "type": "integer",
+                                "description": "Number of results per page for page-based pagination.",
+                            },
+                            "facets": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Attributes to return facet distribution/stats for (attributes must be set as filterable).",
+                            },
+                            "attributesToSearchOn": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Restrict keyword search to these attributes.",
+                            },
                         },
                         "required": ["query"],
                         "additionalProperties": False,
@@ -592,6 +610,10 @@ class MeilisearchMCPServer:
                         offset=arguments.get("offset"),
                         filter=arguments.get("filter"),
                         sort=arguments.get("sort"),
+                        page=arguments.get("page"),
+                        hits_per_page=arguments.get("hitsPerPage"),
+                        facets=arguments.get("facets"),
+                        attributes_to_search_on=arguments.get("attributesToSearchOn"),
                     )
 
                     # Format the results for better readability
