@@ -213,6 +213,42 @@ class MeilisearchMCPServer:
                     },
                 ),
                 types.Tool(
+                    name="get-embedder-settings",
+                    description="Get the AI embedder configuration for an index (used for semantic / AI contextual search).",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {"indexUid": {"type": "string"}},
+                        "required": ["indexUid"],
+                        "additionalProperties": False,
+                    },
+                ),
+                types.Tool(
+                    name="update-embedder-settings",
+                    description="Update the AI embedder configuration for an index (used for semantic / AI contextual search).",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "indexUid": {"type": "string"},
+                            "embedders": {
+                                "type": "object",
+                                "description": "Embedder configurations keyed by embedder name. Each embedder sets source (openAi/huggingFace/rest/ollama/userProvided), model, dimensions, apiKey, and documentTemplate — use documentTemplate to inject fields like a doctor's clinical interest into the semantic context.",
+                            },
+                        },
+                        "required": ["indexUid", "embedders"],
+                        "additionalProperties": False,
+                    },
+                ),
+                types.Tool(
+                    name="reset-embedder-settings",
+                    description="Reset/remove the embedder configuration for an index.",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {"indexUid": {"type": "string"}},
+                        "required": ["indexUid"],
+                        "additionalProperties": False,
+                    },
+                ),
+                types.Tool(
                     name="search",
                     description="Search through Meilisearch indices. If indexUid is not provided, it will search across all indices.",
                     inputSchema={
@@ -244,6 +280,30 @@ class MeilisearchMCPServer:
                                 "type": "array",
                                 "items": {"type": "string"},
                                 "description": "Restrict keyword search to these attributes.",
+                            },
+                            "hybrid": {
+                                "type": "object",
+                                "description": "Hybrid (keyword + AI semantic) search settings.",
+                                "properties": {
+                                    "semanticRatio": {
+                                        "type": "number",
+                                        "description": "0.0-1.0 weight of semantic vs keyword matching.",
+                                    },
+                                    "embedder": {
+                                        "type": "string",
+                                        "description": "Name of a configured embedder to use for semantic search.",
+                                    },
+                                },
+                                "additionalProperties": False,
+                            },
+                            "vector": {
+                                "type": "array",
+                                "items": {"type": "number"},
+                                "description": "Custom query vector for semantic/vector search.",
+                            },
+                            "showRankingScore": {
+                                "type": "boolean",
+                                "description": "Include _rankingScore in each hit.",
                             },
                         },
                         "required": ["query"],
@@ -602,6 +662,39 @@ class MeilisearchMCPServer:
                         )
                     ]
 
+                elif name == "get-embedder-settings":
+                    embedders = self.meili_client.settings.get_embedders(
+                        arguments["indexUid"]
+                    )
+                    return [
+                        types.TextContent(
+                            type="text",
+                            text=f"Embedder settings: {json.dumps(embedders, indent=2, default=json_serializer)}",
+                        )
+                    ]
+
+                elif name == "update-embedder-settings":
+                    result = self.meili_client.settings.update_embedders(
+                        arguments["indexUid"], arguments["embedders"]
+                    )
+                    return [
+                        types.TextContent(
+                            type="text",
+                            text=f"Embedder settings updated: {json.dumps(result, indent=2, default=json_serializer)}",
+                        )
+                    ]
+
+                elif name == "reset-embedder-settings":
+                    result = self.meili_client.settings.reset_embedders(
+                        arguments["indexUid"]
+                    )
+                    return [
+                        types.TextContent(
+                            type="text",
+                            text=f"Embedder settings reset: {json.dumps(result, indent=2, default=json_serializer)}",
+                        )
+                    ]
+
                 elif name == "search":
                     search_results = self.meili_client.search(
                         query=arguments["query"],
@@ -614,6 +707,9 @@ class MeilisearchMCPServer:
                         hits_per_page=arguments.get("hitsPerPage"),
                         facets=arguments.get("facets"),
                         attributes_to_search_on=arguments.get("attributesToSearchOn"),
+                        hybrid=arguments.get("hybrid"),
+                        vector=arguments.get("vector"),
+                        show_ranking_score=arguments.get("showRankingScore"),
                     )
 
                     # Format the results for better readability

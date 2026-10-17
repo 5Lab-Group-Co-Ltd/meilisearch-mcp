@@ -49,3 +49,29 @@ class SettingsManager:
             return index.reset_settings()
         except Exception as e:
             raise Exception(f"Failed to reset settings: {str(e)}")
+
+    def get_embedders(self, index_uid: str) -> Dict[str, Any]:
+        """Get the embedder configuration for an index"""
+        try:
+            index = self.client.index(index_uid)
+            return index.get_embedders()
+        except Exception as e:
+            raise Exception(f"Failed to get embedders: {str(e)}")
+
+    def update_embedders(
+        self, index_uid: str, embedders: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Update the embedder configuration for an index"""
+        try:
+            index = self.client.index(index_uid)
+            return index.update_embedders(embedders)
+        except Exception as e:
+            raise Exception(f"Failed to update embedders: {str(e)}")
+
+    def reset_embedders(self, index_uid: str) -> Dict[str, Any]:
+        """Reset/remove the embedder configuration for an index"""
+        try:
+            index = self.client.index(index_uid)
+            return index.reset_embedders()
+        except Exception as e:
+            raise Exception(f"Failed to reset embedders: {str(e)}")

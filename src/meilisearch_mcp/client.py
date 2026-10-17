@@ -60,6 +60,9 @@ class MeilisearchClient:
         hits_per_page: Optional[int] = None,
         facets: Optional[List[str]] = None,
         attributes_to_search_on: Optional[List[str]] = None,
+        hybrid: Optional[Dict[str, Any]] = None,
+        vector: Optional[List[float]] = None,
+        show_ranking_score: Optional[bool] = None,
         **kwargs,
     ) -> Dict[str, Any]:
         """
@@ -87,6 +90,12 @@ class MeilisearchClient:
                 search_params["facets"] = facets
             if attributes_to_search_on is not None:
                 search_params["attributesToSearchOn"] = attributes_to_search_on
+            if hybrid is not None:
+                search_params["hybrid"] = hybrid
+            if vector is not None:
+                search_params["vector"] = vector
+            if show_ranking_score is not None:
+                search_params["showRankingScore"] = show_ranking_score
 
             # Add any additional parameters
             search_params.update({k: v for k, v in kwargs.items() if v is not None})
