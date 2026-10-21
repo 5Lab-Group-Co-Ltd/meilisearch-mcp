@@ -232,7 +232,7 @@ class TestMCPToolDiscovery:
         tools = await simulate_list_tools(mcp_server)
         tool_names = [tool.name for tool in tools]
 
-        # Complete list of expected tools (26 total - includes 4 new chat tools)
+        # Complete list of expected tools (29 total - includes 3 embedder tools)
         expected_tools = [
             "get-connection-settings",
             "update-connection-settings",
@@ -246,6 +246,9 @@ class TestMCPToolDiscovery:
             "add-documents",
             "get-settings",
             "update-settings",
+            "get-embedder-settings",
+            "update-embedder-settings",
+            "reset-embedder-settings",
             "search",
             "get-task",
             "get-tasks",
@@ -719,3 +722,133 @@ class TestIssue27OpenAISchemaCompatibility:
                 # All required fields should exist in properties
                 for required_field in schema["required"]:
                     assert required_field in schema["properties"]
+
+
+class TestSearchPagination:
+    """Tests for page-based pagination in the search tool"""
+
+    async def test_search_page_pagination_integration(self, mcp_server):
+        """Test page-based pagination returns totalHits/totalPages (needs Meilisearch)"""
+        test_index = generate_unique_index_name("test_pagination")
+        test_documents = [
+            {"id": 1, "title": "Doc One", "content": "alpha"},
+            {"id": 2, "title": "Doc Two", "content": "beta"},
+            {"id": 3, "title": "Doc Three", "content": "gamma"},
+            {"id": 4, "title": "Doc Four", "content": "delta"},
+            {"id": 5, "title": "Doc Five", "content": "epsilon"},
+        ]
+
+        # Create index and add documents
+        await create_test_index_with_documents(mcp_server, test_index, test_documents)
+
+        # Search with page-based pagination
+        search_result = await simulate_mcp_call(
+            mcp_server,
+            "search",
+            {"query": "", "indexUid": test_index, "page": 1, "hitsPerPage": 2},
+        )
+        search_text = assert_text_content_response(search_result)
+
+        # Page-based pagination responses include finite pagination metadata
+        assert "totalHits" in search_text
+        assert "totalPages" in search_text
+        assert "hitsPerPage" in search_text
+
+        # Cleanup
+        await simulate_mcp_call(mcp_server, "delete-index", {"uid": test_index})
+
+
+class TestHybridSearchAndEmbedders:
+    """Tests for hybrid/semantic search params and embedder settings tools"""
+
+    async def test_search_schema_has_pagination_and_hybrid(self, mcp_server):
+        """Offline test: search schema exposes new pagination and hybrid properties"""
+        tools = await simulate_list_tools(mcp_server)
+        search_tool = next(tool for tool in tools if tool.name == "search")
+
+        properties = search_tool.inputSchema["properties"]
+        for prop in [
+            "page",
+            "hitsPerPage",
+            "hybrid",
+            "vector",
+            "facets",
+            "attributesToSearchOn",
+            "showRankingScore",
+        ]:
+            assert prop in properties, f"search schema missing property '{prop}'"
+
+    @pytest.mark.skip(reason="requires Meilisearch embedder configuration")
+    async def test_update_embedder_settings(self, mcp_server):
+        """Test configuring a userProvided embedder via update-embedder-settings"""
+        test_index = generate_unique_index_name("test_embedder")
+        await simulate_mcp_call(mcp_server, "create-index", {"uid": test_index})
+
+        # Configure a userProvided embedder with fixed dimensions
+        update_result = await simulate_mcp_call(
+            mcp_server,
+            "update-embedder-settings",
+            {
+                "indexUid": test_index,
+                "embedders": {
+                    "default": {"source": "userProvided", "dimensions": 3},
+                },
+            },
+        )
+        assert_text_content_response(update_result, "Embedder settings updated")
+
+        # Verify the embedder configuration is retrievable
+        get_result = await simulate_mcp_call(
+            mcp_server, "get-embedder-settings", {"indexUid": test_index}
+        )
+        get_text = assert_text_content_response(get_result)
+        assert "default" in get_text
+
+        # Cleanup
+        await simulate_mcp_call(mcp_server, "delete-index", {"uid": test_index})
+
+    @pytest.mark.skip(reason="requires Meilisearch embedder configuration")
+    async def test_hybrid_search_with_embedder(self, mcp_server):
+        """Test hybrid search using a configured userProvided embedder"""
+        test_index = generate_unique_index_name("test_hybrid")
+
+        # Configure a userProvided embedder
+        await simulate_mcp_call(mcp_server, "create-index", {"uid": test_index})
+        await simulate_mcp_call(
+            mcp_server,
+            "update-embedder-settings",
+            {
+                "indexUid": test_index,
+                "embedders": {
+                    "default": {"source": "userProvided", "dimensions": 3},
+                },
+            },
+        )
+
+        # Add documents carrying their own vectors for the embedder
+        documents = [
+            {"id": 1, "title": "Alpha", "_vectors": {"default": [0.1, 0.2, 0.3]}},
+            {"id": 2, "title": "Beta", "_vectors": {"default": [0.4, 0.5, 0.6]}},
+        ]
+        await simulate_mcp_call(
+            mcp_server,
+            "add-documents",
+            {"indexUid": test_index, "documents": documents},
+        )
+        await wait_for_indexing()
+
+        # Perform a hybrid (keyword + semantic) search
+        search_result = await simulate_mcp_call(
+            mcp_server,
+            "search",
+            {
+                "query": "Alpha",
+                "indexUid": test_index,
+                "hybrid": {"semanticRatio": 0.5, "embedder": "default"},
+                "vector": [0.1, 0.2, 0.3],
+            },
+        )
+        assert_text_content_response(search_result)
+
+        # Cleanup
+        await simulate_mcp_call(mcp_server, "delete-index", {"uid": test_index})
